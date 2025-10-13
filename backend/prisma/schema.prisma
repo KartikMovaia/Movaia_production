@@ -1,0 +1,317 @@
+// This is your updated Prisma schema file with new tables for user settings
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Account type determines permissions and features
+enum AccountType {
+  INDIVIDUAL       // Self-registered, full access to upload & analyze
+  COACH           // Can analyze self + create/manage athlete accounts
+  ATHLETE_LIMITED // Created by coach, view-only access to reports
+  ADMIN           // Platform administrator
+}
+
+// Subscription plans (only for INDIVIDUAL and COACH accounts)
+enum SubscriptionPlan {
+  // Individual plans
+  FREE             // 2 analyses/month
+  INDIVIDUAL_BASIC // $9.99 - 10 analyses/month
+  INDIVIDUAL_PRO   // $19.99 - unlimited
+  
+  // Coach plans
+  COACH_BASIC      // $29.99 - 50 analyses/month
+  COACH_PRO        // $59.99 - 200 analyses/month
+  COACH_UNLIMITED  // $99.99 - unlimited
+}
+
+// Subscription status
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  TRIAL
+  PAST_DUE
+}
+
+// Main user model
+model User {
+  id                String      @id @default(uuid())
+  email             String      @unique
+  password          String
+  firstName         String
+  lastName          String
+  phoneNumber       String?
+  dateOfBirth       DateTime?
+  
+  // Account type and permissions
+  accountType       AccountType
+  isEmailVerified   Boolean     @default(false)
+  isActive          Boolean     @default(true)
+  mustChangePassword Boolean    @default(false)
+  
+  // Coach-Athlete relationship
+  createdByCoachId  String?
+  createdByCoach    User?       @relation("CoachAthletes", fields: [createdByCoachId], references: [id], onDelete: SetNull)
+  managedAthletes   User[]      @relation("CoachAthletes")
+  
+  // Upgrade tracking
+  isUpgraded        Boolean     @default(false)
+  upgradedAt        DateTime?
+  previousCoachId   String?
+  
+  // Profile information
+  profileImage      String?
+  bio               String?
+  height            Float?      // in cm
+  weight            Float?      // in kg
+  runningExperience String?     // Beginner, Intermediate, Advanced, Elite
+  weeklyMileage     Float?      // in km
+  preferredDistance String?     // 5k, 10k, Half Marathon, Marathon, Ultra
+  
+  // Onboarding fields
+  primaryGoal       String?     // run_faster, injury_free, not_sure
+  injuryHistory     Json?       // Array stored as JSON: ["Plantar fasciitis", "ITB syndrome"]
+  gender            String?     // male, female, prefer_not_to_say
+  unitPreference    String?     // metric, imperial
+  personalBest      Json?       // {distance: 10, time: "00:45:30", unit: "km"}
+  
+  // Soft delete
+  deletedAt         DateTime?
+  
+  // Timestamps
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  lastLoginAt       DateTime?
+  lastPasswordChange DateTime?
+  
+  // Relations
+  subscription           Subscription?
+  notificationPreference NotificationPreference?
+  sessions              Session[]
+  analyses              Analysis[]   @relation("UserAnalyses")
+  coachAnalyses         Analysis[]   @relation("CoachUploadedAnalyses")
+  usageRecords          UsageRecord[]
+  notifications         Notification[]
+  activityLogs          ActivityLog[]
+  
+  @@index([email])
+  @@index([accountType])
+  @@index([createdByCoachId])
+  @@index([isActive])
+  @@index([deletedAt])
+}
+
+// Subscription model (only for paying users)
+model Subscription {
+  id                String             @id @default(uuid())
+  userId            String             @unique
+  plan              SubscriptionPlan
+  status            SubscriptionStatus @default(ACTIVE)
+  
+  // Billing
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt        DateTime?
+  
+  // Stripe/Payment provider fields
+  stripeCustomerId   String?           @unique
+  stripeSubscriptionId String?         @unique
+  
+  // Relations
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments          Payment[]
+  
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+// Payment history
+model Payment {
+  id               String    @id @default(uuid())
+  subscriptionId   String
+  amount           Int       // in cents
+  currency         String    @default("USD")
+  status           String    // succeeded, failed, pending
+  stripePaymentId  String?   @unique
+  invoiceUrl       String?   // URL to Stripe invoice PDF
+  
+  subscription     Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  
+  createdAt        DateTime  @default(now())
+  
+  @@index([subscriptionId])
+  @@index([createdAt])
+}
+
+// Notification preferences
+model NotificationPreference {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  
+  // Email notifications
+  emailAnalysis    Boolean  @default(true)
+  emailMarketing   Boolean  @default(false)
+  emailWeekly      Boolean  @default(false)
+  
+  // Push notifications
+  pushAnalysis     Boolean  @default(true)
+  pushUpdates      Boolean  @default(false)
+  pushPromotions   Boolean  @default(false)
+  
+  // SMS notifications
+  smsAlerts        Boolean  @default(false)
+  smsCritical      Boolean  @default(false)
+  
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// Session management for JWT tokens
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  token        String   @unique
+  refreshToken String?  @unique
+  deviceInfo   String?  // User agent, device type, etc.
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@index([refreshToken])
+  @@index([expiresAt])
+}
+
+// Analysis status
+enum AnalysisStatus {
+  DRAFT
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// Analysis model - UPDATED to support multiple videos
+model Analysis {
+  id              String         @id @default(uuid())
+  
+  // Who this analysis belongs to
+  userId          String         // The athlete being analyzed
+  user            User           @relation("UserAnalyses", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Who uploaded this (if different from user)
+  uploadedByCoachId String?      // If uploaded by a coach
+  uploadedByCoach   User?        @relation("CoachUploadedAnalyses", fields: [uploadedByCoachId], references: [id], onDelete: SetNull)
+  
+  // Video information - NOW SUPPORTS MULTIPLE VIDEOS
+  // Normal speed video (REQUIRED)
+  videoUrl        String?        // S3 URL for normal speed video
+  videoFileName   String?        // Original filename - MADE OPTIONAL
+  videoFileSize   Int?           // in bytes
+  videoDuration   Float?         // in seconds
+  thumbnailUrl    String?        // Video thumbnail (from normal video)
+  
+  // Slow motion videos (OPTIONAL)
+  videoLeftToRightUrl      String?  // S3 URL for left-to-right slow-mo
+  videoLeftToRightFileName String?  // Filename
+  videoLeftToRightFileSize Int?     // in bytes
+  videoLeftToRightDuration Float?   // in seconds
+  
+  videoRightToLeftUrl      String?  // S3 URL for right-to-left slow-mo
+  videoRightToLeftFileName String?  // Filename
+  videoRightToLeftFileSize Int?     // in bytes
+  videoRightToLeftDuration Float?   // in seconds
+  
+  // Analysis results
+  status          AnalysisStatus @default(PENDING)
+  
+  // Video upload status tracking
+  normalVideoUploaded       Boolean  @default(false)
+  leftToRightVideoUploaded  Boolean  @default(false)
+  rightToLeftVideoUploaded  Boolean  @default(false)
+  
+  // Metadata
+  notes           String?        // User or coach notes
+  tags            String[]       // Custom tags for categorization
+  isPublic        Boolean        @default(false) // For sharing
+  shareToken      String?        @unique // For public sharing
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  @@index([userId])
+  @@index([uploadedByCoachId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([shareToken])
+}
+
+// Usage tracking for subscription limits
+model UsageRecord {
+  id        String   @id @default(uuid())
+  userId    String
+  month     Int      // Format: YYYYMM (e.g., 202401 for Jan 2024)
+  count     Int      @default(0)
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, month])
+  @@index([userId])
+  @@index([month])
+}
+
+// Notification model
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // ANALYSIS_COMPLETE, SUBSCRIPTION_EXPIRING, NEW_ATHLETE, etc.
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  metadata  Json?    // Additional data
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// Activity log for audit trail
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  action      String   // LOGIN, UPLOAD_VIDEO, CREATE_ATHLETE, UPGRADE_ACCOUNT, etc.
+  entityType  String?  // User, Analysis, Subscription, etc.
+  entityId    String?  // ID of the affected entity
+  metadata    Json?    // Additional context
+  ipAddress   String?
+  userAgent   String?
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
