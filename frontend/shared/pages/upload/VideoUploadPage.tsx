@@ -5,9 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { videoService } from '../../services/video.services';
 import { coachService } from '../../../apps/coach/src/services/coach.service';
-import LoadingSpinner from '../../components/LoadingSpinner';
 
-type VideoType = 'normal' | 'left_to_right' | 'right_to_left';
+type VideoType = 'normal' | 'left_to_right' | 'right_to_left' | 'rear_view';  // UPDATED
 
 interface VideoUpload {
   file: File | null;
@@ -22,16 +21,18 @@ const VideoUploadPage: React.FC = () => {
   const { isCoach } = useAuth();
   const navigate = useNavigate();
   
-  // Refs for file inputs
+  // Refs for file inputs - ADDED rear_view ref
   const normalFileRef = useRef<HTMLInputElement>(null);
   const leftToRightFileRef = useRef<HTMLInputElement>(null);
   const rightToLeftFileRef = useRef<HTMLInputElement>(null);
+  const rearViewFileRef = useRef<HTMLInputElement>(null);  // NEW
   
-  // State for three videos
+  // State for FOUR videos - UPDATED
   const [videos, setVideos] = useState<Record<VideoType, VideoUpload>>({
     normal: { file: null, previewUrl: null, duration: 0, uploading: false, progress: 0, uploaded: false },
     left_to_right: { file: null, previewUrl: null, duration: 0, uploading: false, progress: 0, uploaded: false },
-    right_to_left: { file: null, previewUrl: null, duration: 0, uploading: false, progress: 0, uploaded: false }
+    right_to_left: { file: null, previewUrl: null, duration: 0, uploading: false, progress: 0, uploaded: false },
+    rear_view: { file: null, previewUrl: null, duration: 0, uploading: false, progress: 0, uploaded: false }  // NEW
   });
   
   const [analysisId, setAnalysisId] = useState<string>('');
@@ -437,13 +438,15 @@ const VideoUploadPage: React.FC = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">How to Record Your Videos</h3>
-                <p className="text-sm text-gray-600 mb-4">Watch this tutorial to learn the best practices</p>
+                <p className="text-sm text-gray-600 mb-4">
+                  Watch this tutorial to learn the best practices for recording from multiple angles
+                </p>
               </div>
             </div>
             
             <div className="relative w-full rounded-lg overflow-hidden shadow-lg" style={{ paddingBottom: '56.25%' }}>
               <iframe
-                src="https://drive.google.com/file/d/1nTQHfm_cOfrFH59OS87XsLYGHR9wogZ8/preview"
+                src="../../../assets/How-to-take-a-video-for-running-form-analysis-V2 (1) (1).mp4"
                 className="absolute top-0 left-0 w-full h-full"
                 allow="autoplay"
                 allowFullScreen
@@ -503,7 +506,7 @@ const VideoUploadPage: React.FC = () => {
             </div>
           )}
 
-          {/* Video Upload Sections */}
+          {/* Video Upload Sections - NOW WITH 4 SECTIONS */}
           <div className="space-y-6">
             {renderVideoUploadSection(
               'normal',
@@ -527,6 +530,15 @@ const VideoUploadPage: React.FC = () => {
               'Slow motion capture from right side (Optional)',
               false,
               rightToLeftFileRef
+            )}
+
+            {/* NEW: Rear View Upload Section */}
+            {renderVideoUploadSection(
+              'rear_view',
+              'Rear View',
+              'Capture from directly behind while running (Optional)',
+              false,
+              rearViewFileRef
             )}
           </div>
 

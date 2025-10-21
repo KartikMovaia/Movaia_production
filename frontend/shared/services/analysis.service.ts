@@ -1,4 +1,4 @@
-// frontend/src/services/analysis.service.ts
+// frontend/src/shared/services/analysis.service.ts
 import { apiService } from './api.service';
 
 export interface MetricsClassification {
@@ -74,7 +74,6 @@ export interface VisualizationPNGs {
   };
 }
 
-
 export interface Analysis {
   id: string;
   userId: string;
@@ -91,6 +90,10 @@ export interface Analysis {
   videoRightToLeftUrl?: string;
   videoRightToLeftFileName?: string;
   
+  // Rear-view video (optional)
+  videoRearViewUrl?: string;
+  videoRearViewFileName?: string;
+  
   status: 'DRAFT' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   createdAt: string;
   updatedAt: string;
@@ -99,11 +102,12 @@ export interface Analysis {
   normalVideoUploaded?: boolean;
   leftToRightVideoUploaded?: boolean;
   rightToLeftVideoUploaded?: boolean;
+  rearViewVideoUploaded?: boolean;
   
   // Thumbnail and metrics
-  thumbnailUrl?: string; // S3 URL stored in DB
-  thumbnailPresignedUrl?: string; // Presigned URL for access
-  metricsClassification?: MetricsClassification; // Metrics classification data
+  thumbnailUrl?: string;
+  thumbnailPresignedUrl?: string;
+  metricsClassification?: MetricsClassification;
   
   user?: {
     id: string;
@@ -125,12 +129,14 @@ export interface AnalysisFiles {
   visualizationVideo: string | null;
   frameByFrameCSV: string | null;
   thumbnail: string | null;
+  visualizations: VisualizationPNGs;
 }
 
 export interface MultiVideoAnalysisFiles {
   normal: AnalysisFiles;
   leftToRight: AnalysisFiles | null;
   rightToLeft: AnalysisFiles | null;
+  rearView: AnalysisFiles | null;
 }
 
 class AnalysisService {
@@ -146,7 +152,7 @@ class AnalysisService {
 
   /**
    * Get analysis with all file URLs
-   * NOW RETURNS FILES FROM ALL THREE VIDEO TYPES
+   * RETURNS FILES FROM ALL FOUR VIDEO TYPES: normal, left_to_right, right_to_left, rear_view
    */
   async getAnalysisWithFiles(analysisId: string): Promise<{
     analysis: Analysis;
@@ -233,20 +239,90 @@ class AnalysisService {
 
   /**
    * Helper to check if analysis has multiple videos
+   * NOW INCLUDES REAR VIEW CHECK
    */
   hasMultipleVideos(analysis: Analysis): boolean {
-    return !!(analysis.leftToRightVideoUploaded || analysis.rightToLeftVideoUploaded);
+    return !!(
+      analysis.leftToRightVideoUploaded || 
+      analysis.rightToLeftVideoUploaded ||
+      analysis.rearViewVideoUploaded
+    );
   }
 
   /**
    * Get count of uploaded videos
+   * COUNTS ALL FOUR VIDEO TYPES
    */
   getUploadedVideoCount(analysis: Analysis): number {
     let count = 0;
     if (analysis.normalVideoUploaded) count++;
     if (analysis.leftToRightVideoUploaded) count++;
     if (analysis.rightToLeftVideoUploaded) count++;
+    if (analysis.rearViewVideoUploaded) count++;
     return count;
+  }
+
+  /**
+   * Get human-readable video type names
+   */
+  getVideoTypeLabel(videoType: 'normal' | 'leftToRight' | 'rightToLeft' | 'rearView'): string {
+    const labels = {
+      normal: 'Normal Speed',
+      leftToRight: 'Left to Right',
+      rightToLeft: 'Right to Left',
+      rearView: 'Rear View'
+    };
+    return labels[videoType];
+  }
+
+  /**
+   * Check if specific video type is uploaded
+   */
+  isVideoTypeUploaded(analysis: Analysis, videoType: 'normal' | 'leftToRight' | 'rightToLeft' | 'rearView'): boolean {
+    switch (videoType) {
+      case 'normal':
+        return !!analysis.normalVideoUploaded;
+      case 'leftToRight':
+        return !!analysis.leftToRightVideoUploaded;
+      case 'rightToLeft':
+        return !!analysis.rightToLeftVideoUploaded;
+      case 'rearView':
+        return !!analysis.rearViewVideoUploaded;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Get list of uploaded video types
+   */
+  getUploadedVideoTypes(analysis: Analysis): Array<'normal' | 'leftToRight' | 'rightToLeft' | 'rearView'> {
+    const types: Array<'normal' | 'leftToRight' | 'rightToLeft' | 'rearView'> = [];
+    
+    if (analysis.normalVideoUploaded) types.push('normal');
+    if (analysis.leftToRightVideoUploaded) types.push('leftToRight');
+    if (analysis.rightToLeftVideoUploaded) types.push('rightToLeft');
+    if (analysis.rearViewVideoUploaded) types.push('rearView');
+    
+    return types;
+  }
+
+  /**
+   * Check if analysis is ready to be triggered
+   * (at minimum, normal video must be uploaded)
+   */
+  canTriggerAnalysis(analysis: Analysis): boolean {
+    return !!analysis.normalVideoUploaded;
+  }
+
+  /**
+   * Get analysis completion percentage
+   * Based on number of videos uploaded (assuming max 4)
+   */
+  getCompletionPercentage(analysis: Analysis): number {
+    const uploadedCount = this.getUploadedVideoCount(analysis);
+    const totalPossible = 4; // normal, left-to-right, right-to-left, rear-view
+    return Math.round((uploadedCount / totalPossible) * 100);
   }
 }
 

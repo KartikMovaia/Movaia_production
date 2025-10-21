@@ -119,7 +119,7 @@ const IndividualDashboard: React.FC = () => {
             {mostRecentAnalysis ? (
               <>
                 <div className="mb-6">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Recommended Next</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Recommended Next Analysis</p>
                   <p className="text-3xl font-bold text-gray-900">
                     {formatDate(getNextAnalysisDate(mostRecentAnalysis.createdAt).toISOString())}
                   </p>
@@ -180,7 +180,7 @@ const IndividualDashboard: React.FC = () => {
             
             {mostRecentAnalysis?.metricsClassification ? (
               <div className="space-y-3">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Metrics Analysis</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Your Last Analysis</p>
                 
                 <div className="bg-gray-50 p-3 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
                   <div className="flex items-center justify-between">
@@ -228,7 +228,7 @@ const IndividualDashboard: React.FC = () => {
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 0016 0zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <span className="text-sm font-medium text-gray-700">Check Required</span>
+                      <span className="text-sm font-medium text-gray-700">Check Range</span>
                     </div>
                     <div className="flex items-center">
                       <span className="text-2xl font-bold text-gray-900 mr-1">
@@ -269,24 +269,34 @@ const IndividualDashboard: React.FC = () => {
           className="mb-10"
         />
 
-        {/* Upload Section */}
-        <div className="bg-gray-900 rounded-2xl p-8 mb-10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 opacity-10"
-               style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }}></div>
+        {/* Upload Section - Updated with Company Colors */}
+        <div className="bg-white rounded-2xl p-8 mb-10 relative overflow-hidden border-2 shadow-lg" style={{ borderColor: '#ABD037' }}>
+          {/* Decorative Background Pattern */}
+          <div className="absolute top-0 right-0 w-96 h-96 opacity-5"
+               style={{ background: 'radial-gradient(circle, #ABD037 0%, transparent 70%)' }}></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 opacity-5"
+               style={{ background: 'radial-gradient(circle, #ABD037 0%, transparent 70%)' }}></div>
+          
           <div className="relative">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h2 className="text-3xl font-bold text-white mb-4">
+                <div className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-4"
+                     style={{ backgroundColor: '#ABD037', color: '#FFFFFF' }}>
+                  QUICK ACTION
+                </div>
+                <h2 className="text-3xl font-bold mb-4"
+                    style={{ color: '#686868' }}>
                   Ready to Analyze?
                 </h2>
-                <p className="text-lg  text-white mb-8 max-w-2xl">
+                <p className="text-lg mb-8 max-w-2xl"
+                   style={{ color: '#686868' }}>
                   Upload your running video and get instant AI-powered biomechanical analysis 
                   with personalized recommendations to improve your performance.
                 </p>
                 <div className="flex flex-wrap items-center gap-4">
                   <button 
-                    className="px-6 py-3 text-gray-900 font-medium rounded-xl hover:scale-105 transition-all duration-200 flex items-center"
-                    style={{ background: 'linear-gradient(to right, #ABD037, #98B830)' }}
+                    className="px-6 py-3 font-semibold rounded-xl hover:scale-105 transition-all duration-200 flex items-center shadow-md"
+                    style={{ backgroundColor: '#ABD037', color: '#FFFFFF' }}
                     onClick={() => navigate('/upload')}
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -294,7 +304,7 @@ const IndividualDashboard: React.FC = () => {
                     </svg>
                     Upload Video
                   </button>
-                  <div className="flex items-center  text-white">
+                  <div className="flex items-center" style={{ color: '#686868' }}>
                     <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
@@ -302,12 +312,13 @@ const IndividualDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="hidden lg:block">
-                <div className="w-32 h-32 bg-gray-800 rounded-3xl flex items-center justify-center">
-                  <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+               <div className="hidden lg:block">
+                <div className="w-64 h-64 rounded-3xl flex items-center justify-center overflow-hidden">
+                  <img 
+                    src="../../assets/upload.png" 
+                    alt="Upload" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
               </div>
             </div>
@@ -377,44 +388,55 @@ const IndividualDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right: List of Other Analyses */}
+              {/* Right: List of Other Analyses with Thumbnails */}
               <div>
                 <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wider mb-4">Previous Analyses</h4>
                 {otherAnalyses.length > 0 ? (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {otherAnalyses.slice(0, 5).map((analysis) => (
+                  <div className="space-y-4">
+                    {otherAnalyses.slice(0, 3).map((analysis) => (
                       <div
                         key={analysis.id}
-                        onClick={() => navigate('/analyses')}
-                        className="bg-white rounded-xl p-4 border border-gray-200 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer group"
+                        onClick={() => navigate(`/analysis/${analysis.id}`)}
+                        className="bg-white rounded-xl p-4 border border-gray-200 hover:shadow-lg hover:border-gray-300 transition-all duration-200 cursor-pointer group"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                              <svg className="w-6 h-6 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                              </svg>
+                            {/* Thumbnail - Bigger */}
+                            <div className="w-24 h-24 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 shadow-sm">
+                              {analysis.thumbnailPresignedUrl ? (
+                                <img 
+                                  src={analysis.thumbnailPresignedUrl}
+                                  alt="Analysis thumbnail"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <svg className="w-10 h-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                                  </svg>
+                                </div>
+                              )}
                             </div>
                             <div>
-                              <p className="font-semibold text-gray-900">
+                              <p className="font-bold text-gray-900 text-lg">
                                 {user?.firstName} {user?.lastName}
                               </p>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-sm text-gray-500 mt-1">
                                 {formatShortDate(analysis.createdAt)}
                               </p>
                             </div>
                           </div>
-                          <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transform group-hover:translate-x-1 transition-all" 
+                          <svg className="w-6 h-6 text-gray-400 group-hover:text-gray-600 transform group-hover:translate-x-1 transition-all" 
                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </div>
                       </div>
                     ))}
-                    {otherAnalyses.length > 5 && (
+                    {otherAnalyses.length > 3 && (
                       <button
                         onClick={() => navigate('/analyses')}
-                        className="w-full py-3 text-center text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                        className="w-full py-3 text-center text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors border border-gray-200"
                       >
                         View All {otherAnalyses.length} Analyses →
                       </button>

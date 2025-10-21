@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { exercises, allMetrics, allInjuries, Exercise } from '../../data/exerciseData';
+import { exercises, allMetrics, allInjuries } from '../../Data/exerciseData';
 
-const EXERCISES_PER_PAGE = 12; // Changed from 12 to 6
+const EXERCISES_PER_PAGE = 12;
 
 const ExerciseLibrary: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<'metric' | 'difficulty' | 'plyometric' | 'injuries' | 'favorites' | null>(null);
@@ -48,13 +48,11 @@ const ExerciseLibrary: React.FC = () => {
     });
   }, [exercises, searchQuery, selectedMetric, selectedInjury, selectedDifficulty, selectedPlyometric, selectedFilter, favorites]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredExercises.length / EXERCISES_PER_PAGE);
   const startIndex = (currentPage - 1) * EXERCISES_PER_PAGE;
   const endIndex = startIndex + EXERCISES_PER_PAGE;
   const currentExercises = filteredExercises.slice(startIndex, endIndex);
 
-  // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedMetric, selectedInjury, selectedDifficulty, selectedPlyometric, selectedFilter]);
@@ -70,9 +68,9 @@ const ExerciseLibrary: React.FC = () => {
 
   const getDifficultyColor = (difficulty: number): string => {
     switch (difficulty) {
-      case 1: return 'bg-green-100 text-green-700';
-      case 2: return 'bg-yellow-100 text-yellow-700';
-      case 3: return 'bg-red-100 text-red-700';
+      case 1: return 'bg-[#ABD037]/20 text-[#ABD037] border border-[#ABD037]';
+      case 2: return 'bg-[#686868]/20 text-[#686868] border border-[#686868]';
+      case 3: return 'bg-[#ABD037]/40 text-[#686868] border border-[#ABD037]';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -104,97 +102,94 @@ const ExerciseLibrary: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-12">
+    <div className="min-h-screen bg-[#FFFFFF] pt-24 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Enhanced Header with Better Spacing */}
-        <div className="relative mb-16 rounded-3xl overflow-hidden shadow-2xl">
-          {/* Background with gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"></div>
-          <div className="absolute inset-0 opacity-10" style={{
-            backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")'
+        {/* Header */}
+        <div className="relative mb-16 rounded-3xl overflow-hidden shadow-xl border-2 border-[#686868]/10 bg-[#FFFFFF]">
+          <div className="absolute inset-0 opacity-5" style={{
+            backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ABD037" fill-opacity="1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")'
           }}></div>
           
-          {/* Content with improved spacing */}
           <div className="relative px-10 py-16 lg:px-16 lg:py-20">
             <div className="flex items-start gap-6 mb-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-[#ABD037] to-[#98B830] rounded-3xl flex items-center justify-center shadow-2xl flex-shrink-0">
-                <svg className="w-10 h-10 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-20 h-20 bg-gradient-to-br from-[#ABD037] to-[#ABD037]/80 rounded-3xl flex items-center justify-center shadow-xl flex-shrink-0 border-2 border-[#ABD037]">
+                <svg className="w-10 h-10 text-[#FFFFFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
               <div className="flex-1">
-                <h1 className="text-6xl lg:text-7xl font-bold text-white mb-4 leading-tight" style={{ fontFamily: 'Outfit, system-ui, sans-serif' }}>
+                <h1 className="text-6xl lg:text-7xl font-bold text-[#686868] mb-4 leading-tight" style={{ fontFamily: 'Outfit, system-ui, sans-serif' }}>
                   Exercise Library
                 </h1>
-                <p className="text-xl lg:text-2xl text-gray-300 leading-relaxed max-w-3xl">
+                <p className="text-xl lg:text-2xl text-[#686868]/70 leading-relaxed max-w-3xl">
                   Discover professional exercises designed to improve your running form and prevent injuries
                 </p>
               </div>
             </div>
             
             {/* Stats Bar */}
-            <div className="flex flex-wrap items-center gap-6 mb-8 pb-8 border-b border-white/10">
+            <div className="flex flex-wrap items-center gap-6 mb-8 pb-8 border-b border-[#686868]/10">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-[#ABD037]/10 backdrop-blur-sm flex items-center justify-center border border-[#ABD037]/30">
                   <svg className="w-6 h-6 text-[#ABD037]" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
                     <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-white">{exercises.length}</div>
-                  <div className="text-sm text-gray-400">Total Exercises</div>
+                  <div className="text-3xl font-bold text-[#686868]">{exercises.length}</div>
+                  <div className="text-sm text-[#686868]/60">Total Exercises</div>
                 </div>
               </div>
               
-              <div className="w-px h-12 bg-white/10"></div>
+              <div className="w-px h-12 bg-[#686868]/10"></div>
               
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-[#ABD037]/10 backdrop-blur-sm flex items-center justify-center border border-[#ABD037]/30">
                   <svg className="w-6 h-6 text-[#ABD037]" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-white">{favorites.size}</div>
-                  <div className="text-sm text-gray-400">Favorites</div>
+                  <div className="text-3xl font-bold text-[#686868]">{favorites.size}</div>
+                  <div className="text-sm text-[#686868]/60">Favorites</div>
                 </div>
               </div>
             </div>
             
             {/* Feature Pills */}
             <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-3 px-5 py-3 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 hover:bg-white/15 transition-all">
+              <div className="flex items-center gap-3 px-5 py-3 bg-[#686868]/5 backdrop-blur-sm rounded-2xl border border-[#ABD037]/30 hover:bg-[#ABD037]/10 hover:border-[#ABD037] transition-all">
                 <svg className="w-6 h-6 text-[#ABD037] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span className="text-white font-semibold text-lg">Target specific metrics</span>
+                <span className="text-[#686868] font-semibold text-lg">Target specific metrics</span>
               </div>
-              <div className="flex items-center gap-3 px-5 py-3 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 hover:bg-white/15 transition-all">
+              <div className="flex items-center gap-3 px-5 py-3 bg-[#686868]/5 backdrop-blur-sm rounded-2xl border border-[#ABD037]/30 hover:bg-[#ABD037]/10 hover:border-[#ABD037] transition-all">
                 <svg className="w-6 h-6 text-[#ABD037] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span className="text-white font-semibold text-lg">Prevent & recover from injuries</span>
+                <span className="text-[#686868] font-semibold text-lg">Prevent & recover from injuries</span>
               </div>
-              <div className="flex items-center gap-3 px-5 py-3 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 hover:bg-white/15 transition-all">
+              <div className="flex items-center gap-3 px-5 py-3 bg-[#686868]/5 backdrop-blur-sm rounded-2xl border border-[#ABD037]/30 hover:bg-[#ABD037]/10 hover:border-[#ABD037] transition-all">
                 <svg className="w-6 h-6 text-[#ABD037] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span className="text-white font-semibold text-lg">Video demonstrations</span>
+                <span className="text-[#686868] font-semibold text-lg">Video demonstrations</span>
               </div>
             </div>
 
             {/* Quick Links */}
             <div className="mt-8 flex items-center gap-4 text-base">
-              <a href="#" className="text-[#ABD037] hover:text-[#98B830] font-semibold transition-colors flex items-center gap-2">
+              <a href="#" className="text-[#ABD037] hover:text-[#ABD037]/80 font-semibold transition-colors flex items-center gap-2">
                 <span>📊</span>
                 <span>Use this table</span>
               </a>
-              <span className="text-white/30">|</span>
+              <span className="text-[#686868]/30">|</span>
               <a href="https://docs.google.com/spreadsheets/d/1YU0GD-SENQ4wJTCWQxOzNQ8L5G4Qy0ESLiUaHuLqxel0" 
                  target="_blank" 
                  rel="noopener noreferrer"
-                 className="text-[#ABD037] hover:text-[#98B830] font-semibold transition-colors flex items-center gap-2">
+                 className="text-[#ABD037] hover:text-[#ABD037]/80 font-semibold transition-colors flex items-center gap-2">
                 <span>📑</span>
                 <span>Google Sheets version</span>
               </a>
@@ -210,15 +205,15 @@ const ExerciseLibrary: React.FC = () => {
               placeholder="Search exercises by name, muscle group, or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-6 py-5 pl-14 border-2 border-gray-300 rounded-2xl focus:ring-2 focus:ring-[#ABD037] focus:border-[#ABD037] text-lg transition-all shadow-sm"
+              className="w-full px-6 py-5 pl-14 border-2 border-[#686868]/20 rounded-2xl focus:ring-2 focus:ring-[#ABD037] focus:border-[#ABD037] text-lg transition-all shadow-sm bg-[#FFFFFF]"
             />
-            <svg className="w-6 h-6 text-gray-400 absolute left-5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-[#686868] absolute left-5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-[#686868] hover:text-[#686868]/70 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -234,8 +229,8 @@ const ExerciseLibrary: React.FC = () => {
             onClick={() => setSelectedFilter(selectedFilter === 'metric' ? null : 'metric')}
             className={`px-6 py-3 rounded-xl font-medium transition-all ${
               selectedFilter === 'metric' || selectedMetric
-                ? 'bg-gray-900 text-white shadow-lg scale-105'
-                : 'bg-white text-gray-700 border-2 border-gray-900 hover:bg-gray-50 hover:scale-105'
+                ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border-2 border-[#ABD037]'
+                : 'bg-[#FFFFFF] text-[#686868] border-2 border-[#686868]/30 hover:border-[#ABD037] hover:scale-105'
             }`}
           >
             🎯 Target Metric
@@ -244,8 +239,8 @@ const ExerciseLibrary: React.FC = () => {
             onClick={() => setSelectedFilter(selectedFilter === 'difficulty' ? null : 'difficulty')}
             className={`px-6 py-3 rounded-xl font-medium transition-all ${
               selectedFilter === 'difficulty' || selectedDifficulty
-                ? 'bg-gray-900 text-white shadow-lg scale-105'
-                : 'bg-white text-gray-700 border-2 border-gray-900 hover:bg-gray-50 hover:scale-105'
+                ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border-2 border-[#ABD037]'
+                : 'bg-[#FFFFFF] text-[#686868] border-2 border-[#686868]/30 hover:border-[#ABD037] hover:scale-105'
             }`}
           >
             📊 Difficulty
@@ -254,8 +249,8 @@ const ExerciseLibrary: React.FC = () => {
             onClick={() => setSelectedFilter(selectedFilter === 'plyometric' ? null : 'plyometric')}
             className={`px-6 py-3 rounded-xl font-medium transition-all ${
               selectedFilter === 'plyometric' || selectedPlyometric !== null
-                ? 'bg-gray-900 text-white shadow-lg scale-105'
-                : 'bg-white text-gray-700 border-2 border-gray-900 hover:bg-gray-50 hover:scale-105'
+                ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border-2 border-[#ABD037]'
+                : 'bg-[#FFFFFF] text-[#686868] border-2 border-[#686868]/30 hover:border-[#ABD037] hover:scale-105'
             }`}
           >
             💪 Plyometric
@@ -264,8 +259,8 @@ const ExerciseLibrary: React.FC = () => {
             onClick={() => setSelectedFilter(selectedFilter === 'injuries' ? null : 'injuries')}
             className={`px-6 py-3 rounded-xl font-medium transition-all ${
               selectedFilter === 'injuries' || selectedInjury
-                ? 'bg-gray-900 text-white shadow-lg scale-105'
-                : 'bg-white text-gray-700 border-2 border-gray-900 hover:bg-gray-50 hover:scale-105'
+                ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border-2 border-[#ABD037]'
+                : 'bg-[#FFFFFF] text-[#686868] border-2 border-[#686868]/30 hover:border-[#ABD037] hover:scale-105'
             }`}
           >
             🩹 Target Injuries
@@ -274,8 +269,8 @@ const ExerciseLibrary: React.FC = () => {
             onClick={() => setSelectedFilter(selectedFilter === 'favorites' ? null : 'favorites')}
             className={`px-6 py-3 rounded-xl font-medium transition-all ${
               selectedFilter === 'favorites'
-                ? 'bg-red-500 text-white shadow-lg scale-105'
-                : 'bg-white text-gray-700 border-2 border-gray-900 hover:bg-gray-50 hover:scale-105'
+                ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border-2 border-[#ABD037]'
+                : 'bg-[#FFFFFF] text-[#686868] border-2 border-[#686868]/30 hover:border-[#ABD037] hover:scale-105'
             }`}
           >
             ⭐ Favorites ({favorites.size})
@@ -284,7 +279,7 @@ const ExerciseLibrary: React.FC = () => {
           {(selectedMetric || selectedInjury || selectedDifficulty || selectedPlyometric !== null || searchQuery) && (
             <button
               onClick={clearFilters}
-              className="px-6 py-3 rounded-xl font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-all hover:scale-105"
+              className="px-6 py-3 rounded-xl font-medium bg-[#686868]/10 text-[#686868] hover:bg-[#686868]/20 transition-all hover:scale-105 border border-[#686868]/30"
             >
               ✕ Clear All
             </button>
@@ -293,8 +288,8 @@ const ExerciseLibrary: React.FC = () => {
 
         {/* Filter Dropdowns */}
         {selectedFilter === 'metric' && (
-          <div className="mb-8 p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-lg">
-            <p className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <div className="mb-8 p-6 bg-[#FFFFFF] rounded-2xl border-2 border-[#686868]/20 shadow-lg">
+            <p className="text-sm font-semibold text-[#686868] mb-4 flex items-center gap-2">
               <span className="text-2xl">🎯</span>
               Select Target Metric:
             </p>
@@ -305,8 +300,8 @@ const ExerciseLibrary: React.FC = () => {
                   onClick={() => setSelectedMetric(selectedMetric === metric ? null : metric)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     selectedMetric === metric
-                      ? 'bg-gradient-to-r from-[#ABD037] to-[#98B830] text-gray-900 shadow-lg scale-105'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                      ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border border-[#ABD037]'
+                      : 'bg-[#686868]/5 text-[#686868] hover:bg-[#686868]/10 hover:scale-105 border border-[#686868]/20'
                   }`}
                 >
                   {metric}
@@ -317,8 +312,8 @@ const ExerciseLibrary: React.FC = () => {
         )}
 
         {selectedFilter === 'injuries' && (
-          <div className="mb-8 p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-lg">
-            <p className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <div className="mb-8 p-6 bg-[#FFFFFF] rounded-2xl border-2 border-[#686868]/20 shadow-lg">
+            <p className="text-sm font-semibold text-[#686868] mb-4 flex items-center gap-2">
               <span className="text-2xl">🩹</span>
               Select Target Injury:
             </p>
@@ -329,8 +324,8 @@ const ExerciseLibrary: React.FC = () => {
                   onClick={() => setSelectedInjury(selectedInjury === injury ? null : injury)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     selectedInjury === injury
-                      ? 'bg-gradient-to-r from-[#ABD037] to-[#98B830] text-gray-900 shadow-lg scale-105'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                      ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border border-[#ABD037]'
+                      : 'bg-[#686868]/5 text-[#686868] hover:bg-[#686868]/10 hover:scale-105 border border-[#686868]/20'
                   }`}
                 >
                   {injury}
@@ -341,8 +336,8 @@ const ExerciseLibrary: React.FC = () => {
         )}
 
         {selectedFilter === 'difficulty' && (
-          <div className="mb-8 p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-lg">
-            <p className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <div className="mb-8 p-6 bg-[#FFFFFF] rounded-2xl border-2 border-[#686868]/20 shadow-lg">
+            <p className="text-sm font-semibold text-[#686868] mb-4 flex items-center gap-2">
               <span className="text-2xl">📊</span>
               Select Difficulty Level:
             </p>
@@ -353,8 +348,8 @@ const ExerciseLibrary: React.FC = () => {
                   onClick={() => setSelectedDifficulty(selectedDifficulty === level ? null : level)}
                   className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${
                     selectedDifficulty === level
-                      ? 'bg-gradient-to-r from-[#ABD037] to-[#98B830] text-gray-900 shadow-lg scale-105'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                      ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border border-[#ABD037]'
+                      : 'bg-[#686868]/5 text-[#686868] hover:bg-[#686868]/10 hover:scale-105 border border-[#686868]/20'
                   }`}
                 >
                   {getDifficultyLabel(level)}
@@ -365,8 +360,8 @@ const ExerciseLibrary: React.FC = () => {
         )}
 
         {selectedFilter === 'plyometric' && (
-          <div className="mb-8 p-6 bg-white rounded-2xl border-2 border-gray-200 shadow-lg">
-            <p className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <div className="mb-8 p-6 bg-[#FFFFFF] rounded-2xl border-2 border-[#686868]/20 shadow-lg">
+            <p className="text-sm font-semibold text-[#686868] mb-4 flex items-center gap-2">
               <span className="text-2xl">💪</span>
               Plyometric Exercise:
             </p>
@@ -375,8 +370,8 @@ const ExerciseLibrary: React.FC = () => {
                 onClick={() => setSelectedPlyometric(selectedPlyometric === true ? null : true)}
                 className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${
                   selectedPlyometric === true
-                    ? 'bg-gradient-to-r from-[#ABD037] to-[#98B830] text-gray-900 shadow-lg scale-105'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                    ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border border-[#ABD037]'
+                    : 'bg-[#686868]/5 text-[#686868] hover:bg-[#686868]/10 hover:scale-105 border border-[#686868]/20'
                 }`}
               >
                 Yes
@@ -385,8 +380,8 @@ const ExerciseLibrary: React.FC = () => {
                 onClick={() => setSelectedPlyometric(selectedPlyometric === false ? null : false)}
                 className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${
                   selectedPlyometric === false
-                    ? 'bg-gradient-to-r from-[#ABD037] to-[#98B830] text-gray-900 shadow-lg scale-105'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                    ? 'bg-[#ABD037] text-[#686868] shadow-lg scale-105 border border-[#ABD037]'
+                    : 'bg-[#686868]/5 text-[#686868] hover:bg-[#686868]/10 hover:scale-105 border border-[#686868]/20'
                 }`}
               >
                 No
@@ -397,29 +392,35 @@ const ExerciseLibrary: React.FC = () => {
 
         {/* Results Count & Pagination Info */}
         <div className="mb-8 flex items-center justify-between">
-          <div className="text-base text-gray-600 font-medium">
-            Showing <span className="text-gray-900 font-bold">{startIndex + 1}-{Math.min(endIndex, filteredExercises.length)}</span> of <span className="text-gray-900 font-bold">{filteredExercises.length}</span> exercises
+          <div className="text-base text-[#686868] font-medium">
+            Showing <span className="text-[#686868] font-bold">{startIndex + 1}-{Math.min(endIndex, filteredExercises.length)}</span> of <span className="text-[#686868] font-bold">{filteredExercises.length}</span> exercises
           </div>
           {totalPages > 1 && (
-            <div className="text-base text-gray-600">
-              Page <span className="text-gray-900 font-bold">{currentPage}</span> of <span className="text-gray-900 font-bold">{totalPages}</span>
+            <div className="text-base text-[#686868]">
+              Page <span className="text-[#686868] font-bold">{currentPage}</span> of <span className="text-[#686868] font-bold">{totalPages}</span>
             </div>
           )}
         </div>
 
-        {/* Exercise Grid - 2 columns for better layout with 6 per page */}
+        {/* Exercise Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
           {currentExercises.map(exercise => (
-            <div key={exercise.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
+            <a
+              key={exercise.id}
+              href={exercise.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-sm border border-[#686868]/20 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 hover:border-[#ABD037] block cursor-pointer"
+            >
               {/* Exercise Image */}
-              <div className="relative h-52 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+              <div className="relative h-52 bg-gradient-to-br from-[#686868]/5 to-[#686868]/10 overflow-hidden">
                 <img 
                   src="/assets/Movaia_logo.png" 
                   alt="Exercise thumbnail"
                   className="w-full h-full object-contain p-8"
                 />
-                <div className="absolute bottom-4 right-4 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
-                  <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="absolute bottom-4 right-4 w-12 h-12 bg-[#ABD037]/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-[#686868]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -429,11 +430,15 @@ const ExerciseLibrary: React.FC = () => {
               {/* Exercise Content */}
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-lg font-bold text-gray-900 flex-1 pr-2 line-clamp-2">{exercise.name}</h3>
+                  <h3 className="text-lg font-bold text-[#686868] flex-1 pr-2 line-clamp-2">{exercise.name}</h3>
                   <button 
-                    onClick={() => toggleFavorite(exercise.id)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleFavorite(exercise.id);
+                    }}
                     className={`transition-all flex-shrink-0 hover:scale-125 ${
-                      favorites.has(exercise.id) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+                      favorites.has(exercise.id) ? 'text-[#ABD037]' : 'text-[#686868]/30 hover:text-[#ABD037]'
                     }`}
                   >
                     <svg className="w-7 h-7" fill={favorites.has(exercise.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -442,7 +447,7 @@ const ExerciseLibrary: React.FC = () => {
                   </button>
                 </div>
 
-                <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                <p className="text-sm text-[#686868]/70 mb-4 line-clamp-3">
                   {exercise.description}
                 </p>
 
@@ -451,7 +456,7 @@ const ExerciseLibrary: React.FC = () => {
                     {getDifficultyLabel(exercise.difficulty)}
                   </span>
                   {exercise.isPlyometric && (
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#ABD037]/20 text-[#686868] border border-[#ABD037]">
                       Plyometric
                     </span>
                   )}
@@ -460,15 +465,15 @@ const ExerciseLibrary: React.FC = () => {
                 {/* Metrics Tags */}
                 {exercise.targetMetrics.length > 0 && (
                   <div className="mb-5">
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Target Metrics:</p>
+                    <p className="text-xs font-semibold text-[#686868]/60 uppercase mb-2">Target Metrics:</p>
                     <div className="flex flex-wrap gap-1.5">
                       {exercise.targetMetrics.slice(0, 2).map(metric => (
-                        <span key={metric} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-lg font-medium">
+                        <span key={metric} className="px-2.5 py-1 bg-[#686868]/10 text-[#686868] text-xs rounded-lg font-medium border border-[#686868]/20">
                           {metric}
                         </span>
                       ))}
                       {exercise.targetMetrics.length > 2 && (
-                        <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg font-medium">
+                        <span className="px-2.5 py-1 bg-[#686868]/5 text-[#686868]/70 text-xs rounded-lg font-medium">
                           +{exercise.targetMetrics.length - 2}
                         </span>
                       )}
@@ -477,16 +482,11 @@ const ExerciseLibrary: React.FC = () => {
                 )}
 
                 {/* Action Button */}
-                <a
-                  href={exercise.videoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full py-3 px-4 bg-gradient-to-r from-[#ABD037] to-[#98B830] text-gray-900 font-semibold rounded-xl hover:shadow-xl hover:scale-105 transition-all duration-200 text-center"
-                >
+                <div className="w-full py-3 px-4 bg-gradient-to-r from-[#ABD037] to-[#ABD037]/90 text-[#686868] font-semibold rounded-xl hover:shadow-xl transition-all duration-200 text-center border border-[#ABD037]">
                   Watch Video →
-                </a>
+                </div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
 
@@ -498,8 +498,8 @@ const ExerciseLibrary: React.FC = () => {
               disabled={currentPage === 1}
               className={`px-5 py-3 rounded-xl font-semibold transition-all ${
                 currentPage === 1
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-white border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white hover:scale-105'
+                  ? 'bg-[#686868]/10 text-[#686868]/40 cursor-not-allowed'
+                  : 'bg-[#FFFFFF] border-2 border-[#686868]/30 text-[#686868] hover:border-[#ABD037] hover:bg-[#ABD037]/10 hover:scale-105'
               }`}
             >
               ← Previous
@@ -508,7 +508,6 @@ const ExerciseLibrary: React.FC = () => {
             <div className="flex gap-2">
               {[...Array(totalPages)].map((_, index) => {
                 const page = index + 1;
-                // Show first, last, current, and pages around current
                 if (
                   page === 1 ||
                   page === totalPages ||
@@ -520,8 +519,8 @@ const ExerciseLibrary: React.FC = () => {
                       onClick={() => goToPage(page)}
                       className={`w-12 h-12 rounded-xl font-bold transition-all ${
                         currentPage === page
-                          ? 'bg-gradient-to-r from-[#ABD037] to-[#98B830] text-gray-900 shadow-xl scale-110'
-                          : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-gray-900 hover:scale-105'
+                          ? 'bg-[#ABD037] text-[#686868] shadow-xl scale-110 border border-[#ABD037]'
+                          : 'bg-[#FFFFFF] border-2 border-[#686868]/20 text-[#686868] hover:border-[#ABD037] hover:scale-105'
                       }`}
                     >
                       {page}
@@ -532,7 +531,7 @@ const ExerciseLibrary: React.FC = () => {
                   page === currentPage + 2
                 ) {
                   return (
-                    <span key={page} className="w-12 h-12 flex items-center justify-center text-gray-400 text-xl">
+                    <span key={page} className="w-12 h-12 flex items-center justify-center text-[#686868]/40 text-xl">
                       ...
                     </span>
                   );
@@ -546,8 +545,8 @@ const ExerciseLibrary: React.FC = () => {
               disabled={currentPage === totalPages}
               className={`px-5 py-3 rounded-xl font-semibold transition-all ${
                 currentPage === totalPages
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-white border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white hover:scale-105'
+                  ? 'bg-[#686868]/10 text-[#686868]/40 cursor-not-allowed'
+                  : 'bg-[#FFFFFF] border-2 border-[#686868]/30 text-[#686868] hover:border-[#ABD037] hover:bg-[#ABD037]/10 hover:scale-105'
               }`}
             >
               Next →
@@ -557,17 +556,17 @@ const ExerciseLibrary: React.FC = () => {
 
         {/* No Results */}
         {filteredExercises.length === 0 && (
-          <div className="text-center py-20 bg-white rounded-3xl shadow-sm">
-            <div className="w-28 h-28 bg-gray-100 rounded-full mx-auto mb-6 flex items-center justify-center">
-              <svg className="w-14 h-14 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center py-20 bg-[#FFFFFF] rounded-3xl shadow-sm border border-[#686868]/20">
+            <div className="w-28 h-28 bg-[#686868]/5 rounded-full mx-auto mb-6 flex items-center justify-center">
+              <svg className="w-14 h-14 text-[#686868]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <p className="text-gray-900 text-3xl font-bold mb-3">No exercises found</p>
-            <p className="text-gray-600 text-lg mb-8">Try adjusting your filters or search query</p>
+            <p className="text-[#686868] text-3xl font-bold mb-3">No exercises found</p>
+            <p className="text-[#686868]/70 text-lg mb-8">Try adjusting your filters or search query</p>
             <button
               onClick={clearFilters}
-              className="px-8 py-4 bg-gradient-to-r from-[#ABD037] to-[#98B830] text-gray-900 font-bold rounded-xl hover:shadow-xl transition-all hover:scale-105 text-lg"
+              className="px-8 py-4 bg-[#ABD037] text-[#686868] font-bold rounded-xl hover:shadow-xl transition-all hover:scale-105 text-lg border border-[#ABD037]"
             >
               Clear All Filters
             </button>

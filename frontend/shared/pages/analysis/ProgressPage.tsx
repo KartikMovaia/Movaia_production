@@ -18,8 +18,6 @@ const metricRanges: Record<string, { workable: [number, number]; ideal?: [number
   'sweep-l': { workable: [4, 25] },
   'sweep-r': { workable: [4, 25] },
   'step_rate': { workable: [154, 192], ideal: [163, 184] },
-  'golden_ratio-l': { workable: [0.65, 0.80], ideal: [0.70, 0.75] },
-  'golden_ratio-r': { workable: [0.65, 0.80], ideal: [0.70, 0.75] },
   'fat-l': { workable: [-15, 15], ideal: [-5, 5] },
   'fat-r': { workable: [-15, 15], ideal: [-5, 5] },
   'lean-l': { workable: [2, 8], ideal: [3, 6] },
@@ -48,19 +46,16 @@ const metricCategories: Record<string, string[]> = {
   'Step Metrics': ['step_rate', 'step_width-l', 'step_width-r', 'ground_contact_time-l', 'ground_contact_time-r'],
   'Arm Movement': ['arm_angle-l', 'arm_angle-r', 'arm_movement_back-l', 'arm_movement_back-r', 'arm_movement_forward-l', 'arm_movement_forward-r'],
   'Body Position': ['lean-l', 'lean-r', 'vertical_osc-l', 'vertical_osc-r', 'col_pelvic_drop-l', 'col_pelvic_drop-r'],
-  'Advanced': ['golden_ratio-l', 'golden_ratio-r']
 };
 
 const metricDisplayNames: Record<string, string> = {
-  'msa-l': 'Mid Stance Angle Left',
-  'msa-r': 'Mid Stance Angle Right',
-  'sat-l': 'Shin Angle Left',
-  'sat-r': 'Shin Angle Right',
+  'msa-l': 'Max Shank Angle Left',
+  'msa-r': 'Max Shank Angle Right',
+  'sat-l': 'Shank Angle Left',
+  'sat-r': 'Shank Angle Right',
   'sweep-l': 'Sweep Left',
   'sweep-r': 'Sweep Right',
   'step_rate': 'Step Rate',
-  'golden_ratio-l': 'Golden Ratio Left',
-  'golden_ratio-r': 'Golden Ratio Right',
   'fat-l': 'Foot Angle Left',
   'fat-r': 'Foot Angle Right',
   'lean-l': 'Lean Left',
@@ -748,8 +743,11 @@ const ProgressPage: React.FC = () => {
         {/* Detailed Metrics Table */}
         <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 mb-8">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Detailed Metrics Breakdown</h2>
-          <p className="text-sm text-gray-600 mb-6">
+          <p className="text-sm text-gray-600 mb-2">
             Click on any metric row to add it to the comparison view above
+          </p>
+          <p className="text-xs text-gray-500 mb-6 italic">
+            Grade shows possible status ranges for each metric: C = Check, W = Workable, I = Ideal
           </p>
           
           <div className="overflow-x-auto">
@@ -766,6 +764,7 @@ const ProgressPage: React.FC = () => {
                     </th>
                   ))}
                   <th className="text-center py-3 px-4 font-semibold text-gray-700">Change</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Grade</th>
                 </tr>
               </thead>
               <tbody>
@@ -775,6 +774,20 @@ const ProgressPage: React.FC = () => {
                   const hasImproved = lastValue !== undefined && firstValue !== undefined && 
                     getMetricStatus(metricKey, lastValue) !== 'check' && 
                     getMetricStatus(metricKey, firstValue) === 'check';
+                  
+                  // Calculate grade - all possible statuses for this metric based on its ranges
+                  const ranges = metricRanges[metricKey];
+                  let gradeStr = 'N/A';
+                  
+                  if (ranges) {
+                    // All metrics with ranges can have Check (C) and Workable (W)
+                    // Only metrics with an ideal range can have Ideal (I)
+                    if (ranges.ideal) {
+                      gradeStr = 'C W I';
+                    } else {
+                      gradeStr = 'C W';
+                    }
+                  }
                   
                   return (
                     <tr 
@@ -816,6 +829,26 @@ const ProgressPage: React.FC = () => {
                         ) : (
                           <span className="text-gray-400 text-sm">—</span>
                         )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="inline-flex items-center gap-1">
+                          {gradeStr === 'N/A' ? (
+                            <span className="text-sm text-gray-400">N/A</span>
+                          ) : (
+                            gradeStr.split(' ').map((letter, idx) => (
+                              <span
+                                key={idx}
+                                className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded ${
+                                  letter === 'C' ? 'bg-red-100 text-red-700' :
+                                  letter === 'W' ? 'bg-yellow-100 text-yellow-700' :
+                                  letter === 'I' ? 'bg-green-100 text-green-700' : ''
+                                }`}
+                              >
+                                {letter}
+                              </span>
+                            ))
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
