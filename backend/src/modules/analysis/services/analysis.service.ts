@@ -19,11 +19,10 @@ const BACKEND_WEBHOOK_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 export class AnalysisService {
   /**
    * Trigger analysis on EC2 instance
-   * NOW HANDLES MULTIPLE VIDEOS
+   * SUPPORTS ALL FOUR VIDEO TYPES: normal, left_to_right, right_to_left, rear_view
    */
   async triggerAnalysis(analysisId: string): Promise<void> {
     try {
-      // Get analysis record
       const analysis = await prisma.analysis.findUnique({
         where: { id: analysisId },
         include: { user: true }  
@@ -33,22 +32,21 @@ export class AnalysisService {
         throw new Error('Analysis not found');
       }
 
-      // Check if normal video exists (required)
       if (!analysis.videoUrl) {
         throw new Error('Normal speed video is required');
       }
 
-      // Update status to PROCESSING
       await prisma.analysis.update({
         where: { id: analysisId },
         data: { status: AnalysisStatus.PROCESSING },
       });
 
-      // Prepare video URLs for EC2
+      // Prepare video URLs for EC2 - ALL FOUR VIDEO TYPES
       const videos: any = {
         normal: null,
         leftToRight: null,
-        rightToLeft: null
+        rightToLeft: null,
+        rearView: null
       };
 
       // Generate presigned URLs for each video
@@ -67,10 +65,15 @@ export class AnalysisService {
         videos.rightToLeft = await this.generatePresignedUrl(rightKey);
       }
 
-      // Send request to EC2 analysis API with all videos
+      // Handle rear-view video
+      if (analysis.videoRearViewUrl) {
+        const rearKey = analysis.videoRearViewUrl.split('.amazonaws.com/')[1];
+        videos.rearView = await this.generatePresignedUrl(rearKey);
+      }
+
       const response = await axios.post(`${EC2_API_URL}/api/analyze`, {
         analysisId,
-        videos, // Send all three videos
+        videos,
         userId: analysis.user.id,
         webhookUrl: `${BACKEND_WEBHOOK_URL}/api/analysis/webhook`,
       });
@@ -79,7 +82,6 @@ export class AnalysisService {
     } catch (error) {
       console.error('Failed to trigger analysis:', error);
 
-      // Update status to FAILED
       await prisma.analysis.update({
         where: { id: analysisId },
         data: { status: AnalysisStatus.FAILED },
@@ -91,14 +93,14 @@ export class AnalysisService {
 
   /**
    * Handle webhook from EC2 with analysis results
-   * NOW HANDLES RESULTS FROM MULTIPLE VIDEOS
+   * HANDLES RESULTS FROM ALL VIDEO TYPES
    */
   async handleAnalysisComplete(data: {
     analysisId: string;
     userId: string;
     status: 'completed' | 'failed';
     error?: string;
-    videoType?: string; // Which video finished processing
+    videoType?: string;
   }): Promise<void> {
     try {
       const { analysisId, status, error } = data;
@@ -114,7 +116,7 @@ export class AnalysisService {
       // Generate thumbnail URL (from normal video)
       const baseKey = `analysis_result/${data.userId}/${analysisId}`;
       const normalFolder = `${baseKey}/normal`;
-      const thumbnailKey = `${normalFolder}/input_video-FULL-L.png`;
+      const thumbnailKey = `${normalFolder}/input_video_normal-FULL-L.png`;
       const thumbnailUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${thumbnailKey}`;
 
       // Update status and thumbnail URL
@@ -170,7 +172,7 @@ export class AnalysisService {
     // Generate presigned URL for thumbnail if it exists
     if (analysis.status === AnalysisStatus.COMPLETED) {
       const baseKey = `analysis_result/${analysis.userId}/${analysisId}`;
-      const thumbnailKey = `${baseKey}/normal/input_video-FULL-L.png`;
+      const thumbnailKey = `${baseKey}/normal/input_video_normal-FULL-L.png`;
       
       try {
         const thumbnailUrl = await this.generatePresignedUrl(thumbnailKey);
@@ -236,7 +238,7 @@ export class AnalysisService {
           const baseKey = `analysis_result/${analysis.userId}/${analysis.id}`;
           
           // Get thumbnail from normal video
-          const thumbnailKey = `${baseKey}/normal/input_video-FULL-L.png`;
+          const thumbnailKey = `${baseKey}/normal/input_video_normal-FULL-L.png`;
           try {
             const thumbnailUrl = await this.generatePresignedUrl(thumbnailKey);
             result.thumbnailPresignedUrl = thumbnailUrl;
@@ -279,7 +281,6 @@ export class AnalysisService {
       
       return this.classifyMetricsFromCSV(csvText);
     } catch (error: any) {
-      // 404 is expected for analyses that haven't completed yet
       if (error.response?.status === 404) {
         return null;
       }
@@ -346,149 +347,156 @@ export class AnalysisService {
   }
 
   /**
- * Get analysis files - NOW RETURNS FILES FROM ALL THREE VIDEO FOLDERS INCLUDING ALL PNGs
- */
-/**
- * Get analysis files - FIXED PNG URL CONSTRUCTION
- */
-async getAnalysisFiles(analysisId: string, userId: string): Promise<any> {
-  const analysis = await prisma.analysis.findFirst({
-    where: {
-      id: analysisId,
-      userId: userId
+   * Get analysis files - RETURNS FILES FROM ALL FOUR VIDEO FOLDERS
+   * Supports: normal, left_to_right, right_to_left, rear_view
+   */
+  async getAnalysisFiles(analysisId: string, userId: string): Promise<any> {
+    const analysis = await prisma.analysis.findFirst({
+      where: {
+        id: analysisId,
+        userId: userId
+      }
+    });
+
+    if (!analysis) {
+      throw new Error('Analysis not found');
     }
-  });
 
-  if (!analysis) {
-    throw new Error('Analysis not found');
-  }
-
-  const baseKey = `analysis_result/${userId}/${analysisId}`;
-  
-  // Helper function to get all visualization PNGs for a video type
-  // videoType: 'normal', 'left_to_right', or 'right_to_left'
-  const getVisualizationPNGs = async (folder: string, videoType: string) => {
-    // Construct the base filename pattern based on video type
-    // normal → input_video_normal
-    // left_to_right → input_video_left_to_right
-    // right_to_left → input_video_right_to_left
-    const videoPrefix = `input_video_${videoType}`;
+    const baseKey = `analysis_result/${userId}/${analysisId}`;
     
-    const pngCategories = {
-      // Full body visualizations
-      fullBody: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-FULL-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-FULL-R.png`)
-      },
+    /**
+     * Helper function to get all visualization PNGs for a video type
+     * @param folder - S3 folder name (normal, left_to_right, right_to_left, rear_view)
+     * @param videoType - Video type identifier for filename construction
+     */
+    const getVisualizationPNGs = async (folder: string, videoType: string) => {
+      const videoPrefix = `input_video_${videoType}`;
       
-      // Biomechanical metrics
-      footAngle: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-FAT-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-FAT-R.png`)
-      },
-      toeOff: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-TOF-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-TOF-R.png`)
-      },
-      shinAngle: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-SAT-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-SAT-R.png`)
-      },
-      midStanceAngle: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-MSA-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-MSA-R.png`)
-      },
-      armMovement: {
-        front: {
-          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-AMF-L.png`),
-          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-AMF-R.png`)
+      const pngCategories = {
+        fullBody: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-FULL-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-FULL-R.png`)
         },
-        back: {
-          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-AMB-R.png`),
-          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-AMB-R.png`)
-        }
-      },
-      armAngle: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-ARA-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-ARA-R.png`)
-      },
-      leanVerticalOscillation: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-LENVOP-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-LENVOP-R.png`)
-      },
-      lean: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-LEN-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-LEN-R.png`)
-      },
-      pelvicDrop: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-CPD-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-CPD-R.png`)
-      },
-      stepWidth: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-STW-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-STW-R.png`)
-      },
-      posture: {
-        left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PST-L.png`),
-        right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PST-R.png`)
-      },
-      pelvisMinMax: {
-        min: {
-          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PLSMIN-L.png`),
-          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PLSMIN-R.png`)
+        footAngle: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-FAT-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-FAT-R.png`)
         },
-        max: {
-          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PLSMAX-L.png`),
-          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PLSMAX-R.png`)
+        toeOff: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-TOF-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-TOF-R.png`)
+        },
+        shinAngle: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-SAT-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-SAT-R.png`)
+        },
+        midStanceAngle: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-MSA-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-MSA-R.png`)
+        },
+        armMovement: {
+          front: {
+            left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-AMF-L.png`),
+            right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-AMF-R.png`)
+          },
+          back: {
+            left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-AMB-L.png`),
+            right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-AMB-R.png`)
+          }
+        },
+        armAngle: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-ARA-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-ARA-R.png`)
+        },
+        leanVerticalOscillation: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-LENVOP-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-LENVOP-R.png`)
+        },
+        lean: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-LEN-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-LEN-R.png`)
+        },
+        pelvicDrop: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-CPD-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-CPD-R.png`)
+        },
+        stepWidth: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-STW-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-STW-R.png`)
+        },
+        posture: {
+          left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PST-L.png`),
+          right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PST-R.png`)
+        },
+        pelvisMinMax: {
+          min: {
+            left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PLSMIN-L.png`),
+            right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PLSMIN-R.png`)
+          },
+          max: {
+            left: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PLSMAX-L.png`),
+            right: await this.generatePresignedUrl(`${baseKey}/${folder}/${videoPrefix}-PLSMAX-R.png`)
+          }
         }
+      };
+
+      return pngCategories;
+    };
+
+    // Files from normal video (always present)
+    const normalFiles = {
+      resultsCSV: await this.generatePresignedUrl(`${baseKey}/normal/results.csv`),
+      visualizationVideo: await this.generatePresignedUrl(`${baseKey}/normal/visualization.mp4`),
+      frameByFrameCSV: await this.generatePresignedUrl(`${baseKey}/normal/frame_by_frame.csv`),
+      thumbnail: await this.generatePresignedUrl(`${baseKey}/normal/input_video_normal-FULL-L.png`),
+      visualizations: await getVisualizationPNGs('normal', 'normal')
+    };
+
+    // Files from left-to-right video (if exists)
+    let leftToRightFiles = null;
+    if (analysis.leftToRightVideoUploaded) {
+      leftToRightFiles = {
+        resultsCSV: await this.generatePresignedUrl(`${baseKey}/left_to_right/results.csv`),
+        visualizationVideo: await this.generatePresignedUrl(`${baseKey}/left_to_right/visualization.mp4`),
+        frameByFrameCSV: await this.generatePresignedUrl(`${baseKey}/left_to_right/frame_by_frame.csv`),
+        thumbnail: await this.generatePresignedUrl(`${baseKey}/left_to_right/input_video_left_to_right-FULL-L.png`),
+        visualizations: await getVisualizationPNGs('left_to_right', 'left_to_right')
+      };
+    }
+
+    // Files from right-to-left video (if exists)
+    let rightToLeftFiles = null;
+    if (analysis.rightToLeftVideoUploaded) {
+      rightToLeftFiles = {
+        resultsCSV: await this.generatePresignedUrl(`${baseKey}/right_to_left/results.csv`),
+        visualizationVideo: await this.generatePresignedUrl(`${baseKey}/right_to_left/visualization.mp4`),
+        frameByFrameCSV: await this.generatePresignedUrl(`${baseKey}/right_to_left/frame_by_frame.csv`),
+        thumbnail: await this.generatePresignedUrl(`${baseKey}/right_to_left/input_video_right_to_left-FULL-L.png`),
+        visualizations: await getVisualizationPNGs('right_to_left', 'right_to_left')
+      };
+    }
+
+    // Files from rear-view video (if exists)
+    let rearViewFiles = null;
+    if (analysis.rearViewVideoUploaded) {
+      rearViewFiles = {
+        resultsCSV: await this.generatePresignedUrl(`${baseKey}/rear_view/results.csv`),
+        visualizationVideo: await this.generatePresignedUrl(`${baseKey}/rear_view/visualization.mp4`),
+        frameByFrameCSV: await this.generatePresignedUrl(`${baseKey}/rear_view/frame_by_frame.csv`),
+        thumbnail: await this.generatePresignedUrl(`${baseKey}/rear_view/input_video_rear_view-FULL-L.png`),
+        visualizations: await getVisualizationPNGs('rear_view', 'rear_view')
+      };
+    }
+
+    return {
+      analysis,
+      files: {
+        normal: normalFiles,
+        leftToRight: leftToRightFiles,
+        rightToLeft: rightToLeftFiles,
+        rearView: rearViewFiles
       }
     };
-
-    return pngCategories;
-  };
-
-  // Files from normal video (always present)
-  const normalFiles = {
-    resultsCSV: await this.generatePresignedUrl(`${baseKey}/normal/results.csv`),
-    visualizationVideo: await this.generatePresignedUrl(`${baseKey}/normal/visualization.mp4`),
-    frameByFrameCSV: await this.generatePresignedUrl(`${baseKey}/normal/frame_by_frame.csv`),
-    thumbnail: await this.generatePresignedUrl(`${baseKey}/normal/input_video_normal-FULL-L.png`),
-    visualizations: await getVisualizationPNGs('normal', 'normal')
-  };
-
-  // Files from left-to-right video (if exists)
-  let leftToRightFiles = null;
-  if (analysis.leftToRightVideoUploaded) {
-    leftToRightFiles = {
-      resultsCSV: await this.generatePresignedUrl(`${baseKey}/left_to_right/results.csv`),
-      visualizationVideo: await this.generatePresignedUrl(`${baseKey}/left_to_right/visualization.mp4`),
-      frameByFrameCSV: await this.generatePresignedUrl(`${baseKey}/left_to_right/frame_by_frame.csv`),
-      thumbnail: await this.generatePresignedUrl(`${baseKey}/left_to_right/input_video_left_to_right-FULL-L.png`),
-      visualizations: await getVisualizationPNGs('left_to_right', 'left_to_right')
-    };
   }
-
-  // Files from right-to-left video (if exists)
-  let rightToLeftFiles = null;
-  if (analysis.rightToLeftVideoUploaded) {
-    rightToLeftFiles = {
-      resultsCSV: await this.generatePresignedUrl(`${baseKey}/right_to_left/results.csv`),
-      visualizationVideo: await this.generatePresignedUrl(`${baseKey}/right_to_left/visualization.mp4`),
-      frameByFrameCSV: await this.generatePresignedUrl(`${baseKey}/right_to_left/frame_by_frame.csv`),
-      thumbnail: await this.generatePresignedUrl(`${baseKey}/right_to_left/input_video_right_to_left-FULL-L.png`),
-      visualizations: await getVisualizationPNGs('right_to_left', 'right_to_left')
-    };
-  }
-
-  return {
-    analysis,
-    files: {
-      normal: normalFiles,
-      leftToRight: leftToRightFiles,
-      rightToLeft: rightToLeftFiles
-    }
-  };
-}
 
   private async generatePresignedUrl(key: string): Promise<string | null> {
     try {

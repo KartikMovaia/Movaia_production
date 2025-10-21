@@ -235,6 +235,10 @@ model Analysis {
   videoRightToLeftFileName String?  // Filename
   videoRightToLeftFileSize Int?     // in bytes
   videoRightToLeftDuration Float?   // in seconds
+
+    // NEW: Rear-view video fields
+  videoRearViewUrl       String?
+  videoRearViewFileName  String?
   
   // Analysis results
   status          AnalysisStatus @default(PENDING)
@@ -243,6 +247,7 @@ model Analysis {
   normalVideoUploaded       Boolean  @default(false)
   leftToRightVideoUploaded  Boolean  @default(false)
   rightToLeftVideoUploaded  Boolean  @default(false)
+  rearViewVideoUploaded     Boolean @default(false) 
   
   // Metadata
   notes           String?        // User or coach notes

@@ -23,12 +23,12 @@ const s3Client = new S3Client({
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'movaia-videos';
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
-// Video type enum
-export type VideoType = 'normal' | 'left_to_right' | 'right_to_left';
+// Video type enum - NOW INCLUDES REAR_VIEW
+export type VideoType = 'normal' | 'left_to_right' | 'right_to_left' | 'rear_view';
 
 /**
  * Generate presigned URL for direct S3 upload
- * NOW ACCEPTS VIDEO TYPE
+ * NOW ACCEPTS REAR_VIEW VIDEO TYPE
  */
 export const getUploadUrl = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -45,8 +45,8 @@ export const getUploadUrl = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // Validate video type
-    if (!['normal', 'left_to_right', 'right_to_left'].includes(videoType)) {
+    // Validate video type - NOW INCLUDES rear_view
+    if (!['normal', 'left_to_right', 'right_to_left', 'rear_view'].includes(videoType)) {
       res.status(400).json({ error: 'Invalid video type' });
       return;
     }
@@ -61,7 +61,8 @@ export const getUploadUrl = async (req: Request, res: Response): Promise<void> =
     // Generate unique key for S3 with video type folder
     const fileExtension = fileName.split('.').pop();
     const videoTypeFolder = videoType === 'normal' ? 'normal' : 
-                           videoType === 'left_to_right' ? 'left_to_right' : 'right_to_left';
+                           videoType === 'left_to_right' ? 'left_to_right' : 
+                           videoType === 'right_to_left' ? 'right_to_left' : 'rear_view';
     
     // If analysisId provided, use it; otherwise generate new one
     const finalAnalysisId = analysisId || uuidv4();
@@ -99,7 +100,7 @@ export const getUploadUrl = async (req: Request, res: Response): Promise<void> =
 
 /**
  * Confirm video upload and create/update analysis record
- * NOW HANDLES MULTIPLE VIDEO TYPES
+ * NOW HANDLES REAR_VIEW VIDEO TYPE
  */
 export const confirmUpload = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -146,10 +147,12 @@ export const confirmUpload = async (req: Request, res: Response): Promise<void> 
           videoUrl: true,
           videoLeftToRightUrl: true,
           videoRightToLeftUrl: true,
+          videoRearViewUrl: true,
           status: true,
           normalVideoUploaded: true,
           leftToRightVideoUploaded: true,
           rightToLeftVideoUploaded: true,
+          rearViewVideoUploaded: true,
           createdAt: true,
         },
       });
@@ -210,8 +213,8 @@ export const confirmUpload = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Validate video type
-    if (!['normal', 'left_to_right', 'right_to_left'].includes(videoType)) {
+    // Validate video type - NOW INCLUDES rear_view
+    if (!['normal', 'left_to_right', 'right_to_left', 'rear_view'].includes(videoType)) {
       res.status(400).json({ error: 'Invalid video type' });
       return;
     }
@@ -265,6 +268,10 @@ export const confirmUpload = async (req: Request, res: Response): Promise<void> 
         updateData.videoRightToLeftUrl = videoUrl;
         updateData.videoRightToLeftFileName = videoFileName;
         updateData.rightToLeftVideoUploaded = true;
+      } else if (videoType === 'rear_view') {
+        updateData.videoRearViewUrl = videoUrl;
+        updateData.videoRearViewFileName = videoFileName;
+        updateData.rearViewVideoUploaded = true;
       }
 
       // If this is the last video (isComplete flag), set status to PENDING
@@ -281,10 +288,12 @@ export const confirmUpload = async (req: Request, res: Response): Promise<void> 
           videoUrl: true,
           videoLeftToRightUrl: true,
           videoRightToLeftUrl: true,
+          videoRearViewUrl: true,
           status: true,
           normalVideoUploaded: true,
           leftToRightVideoUploaded: true,
           rightToLeftVideoUploaded: true,
+          rearViewVideoUploaded: true,
           createdAt: true,
         },
       });
@@ -312,6 +321,10 @@ export const confirmUpload = async (req: Request, res: Response): Promise<void> 
         createData.videoRightToLeftUrl = videoUrl;
         createData.videoRightToLeftFileName = videoFileName;
         createData.rightToLeftVideoUploaded = true;
+      } else if (videoType === 'rear_view') {
+        createData.videoRearViewUrl = videoUrl;
+        createData.videoRearViewFileName = videoFileName;
+        createData.rearViewVideoUploaded = true;
       }
 
       // If only normal video and isComplete, set to PENDING
@@ -327,10 +340,12 @@ export const confirmUpload = async (req: Request, res: Response): Promise<void> 
           videoUrl: true,
           videoLeftToRightUrl: true,
           videoRightToLeftUrl: true,
+          videoRearViewUrl: true,
           status: true,
           normalVideoUploaded: true,
           leftToRightVideoUploaded: true,
           rightToLeftVideoUploaded: true,
+          rearViewVideoUploaded: true,
           createdAt: true,
         },
       });
