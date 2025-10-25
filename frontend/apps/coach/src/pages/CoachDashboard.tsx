@@ -1,223 +1,503 @@
-// src/pages/dashboards/CoachDashboard.tsx
+// frontend/src/apps/coach/src/pages/CoachDashboard.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../../shared/contexts/AuthContext';
-import { coachService } from '../services/coach.service';
-import { AthleteWithStats } from '../../../../shared/types/user.types';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { coachService, Athlete, CoachStats } from '../../../../shared/services/coach.service';
+import { analysisService } from '../../../../shared/services/analysis.service';
 import LoadingSpinner from '../../../../shared/components/LoadingSpinner';
-import CreateAthleteModal from '../components/CreateAthleteModal';
-import AthleteCard from '../components/AthleteCard';
+import { useAuth } from '../../../../shared/contexts/AuthContext';
 
+interface Analysis {
+  id: string;
+  userId: string;
+  status: string;
+  createdAt: string;
+  thumbnailPresignedUrl?: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  metricsClassification?: {
+    ideal: number;
+    workable: number;
+    check: number;
+  };
+}
 
 const CoachDashboard: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'my-analysis' | 'athletes'>('my-analysis');
-  const [athletes, setAthletes] = useState<AthleteWithStats[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<CoachStats | null>(null);
+  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [analyses, setAnalyses] = useState<Analysis[]>([]);
+  const [totalAnalyses, setTotalAnalyses] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Filters
+  const [selectedAthleteId, setSelectedAthleteId] = useState<string>(
+    searchParams.get('athleteId') || ''
+  );
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<string>('all');
 
   useEffect(() => {
-    if (activeTab === 'athletes') {
-      loadAthletes();
-    }
-  }, [activeTab]);
+    loadDashboardData();
+  }, [selectedAthleteId, selectedStatus, dateRange, currentPage]);
 
-  const loadAthletes = async () => {
+  const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const data = await coachService.getAthletes();
-      setAthletes(data);
+      
+      // Load stats and athletes in parallel
+      const [statsData, athletesData] = await Promise.all([
+        coachService.getCoachStats(),
+        coachService.getAthletes(),
+      ]);
+
+      setStats(statsData);
+      setAthletes(athletesData);
+
+      // Build filters
+      const filters: any = {
+        page: currentPage,
+        limit: 9,
+      };
+
+      if (selectedAthleteId) filters.athleteId = selectedAthleteId;
+      if (selectedStatus && selectedStatus !== 'all') filters.status = selectedStatus.toUpperCase();
+
+      // Date range filtering
+      if (dateRange !== 'all') {
+        const now = new Date();
+        const startDate = new Date();
+        
+        switch (dateRange) {
+          case 'week':
+            startDate.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            startDate.setMonth(now.getMonth() - 1);
+            break;
+          case '3months':
+            startDate.setMonth(now.getMonth() - 3);
+            break;
+          case '6months':
+            startDate.setMonth(now.getMonth() - 6);
+            break;
+        }
+        
+        filters.startDate = startDate.toISOString();
+      }
+
+      // Load analyses
+      const analysesData = await coachService.getAllAthletesAnalyses(filters);
+      setAnalyses(analysesData.analyses);
+      setTotalAnalyses(analysesData.total);
+      
     } catch (error) {
-      console.error('Failed to load athletes:', error);
+      console.error('Failed to load dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAthleteCreated = () => {
-    setShowCreateModal(false);
-    loadAthletes();
+  const handleAthleteFilter = (athleteId: string) => {
+    setSelectedAthleteId(athleteId);
+    setCurrentPage(1);
+    
+    if (athleteId) {
+      setSearchParams({ athleteId });
+    } else {
+      setSearchParams({});
+    }
   };
 
-  const monthlyUsage = user?.stats?.monthlyUsage || 0;
-  const totalAnalyses = user?.stats?.totalAnalyses || 0;
-  const totalAthletes = user?.stats?.totalAthletes || 0;
+  const getSelectedAthlete = () => {
+    if (!selectedAthleteId) return null;
+    return athletes.find((a) => a.id === selectedAthleteId);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getNextAnalysisRecommendation = (lastAnalysisDate: string | null): string => {
+    if (!lastAnalysisDate) return 'No analyses yet';
+    
+    const last = new Date(lastAnalysisDate);
+    const nextRecommended = new Date(last);
+    nextRecommended.setMonth(nextRecommended.getMonth() + 1);
+    
+    const now = new Date();
+    if (now >= nextRecommended) {
+      return 'Due now';
+    }
+    
+    return `Due ${formatDate(nextRecommended.toISOString())}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="xl" />
+      </div>
+    );
+  }
+
+  const selectedAthlete = getSelectedAthlete();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-primary-50 pt-24 pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#686868]">
+          <h1 className="text-3xl font-display font-bold text-neutral-900 mb-2">
             Coach Dashboard
           </h1>
-          <p className="mt-2 text-[#686868]">
-            Welcome back, {user?.firstName || 'Coach'}!
+          <p className="text-lg text-neutral-600">
+            {selectedAthlete 
+              ? `Viewing analyses for ${selectedAthlete.firstName} ${selectedAthlete.lastName}`
+              : 'Manage athletes and track running form analyses'
+            }
           </p>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-sm mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex">
+        {/* Stats Cards */}
+        {!selectedAthleteId && stats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-xl p-6 border border-neutral-200">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-neutral-600">Total Athletes</p>
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-neutral-900">{stats.totalAthletes}</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-neutral-200">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-neutral-600">Total Analyses</p>
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-neutral-900">{stats.totalAnalyses}</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-neutral-200">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-neutral-600">Completed</p>
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-neutral-900">{stats.completedAnalyses}</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-neutral-200">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-neutral-600">Processing</p>
+                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <div className="animate-spin">
+                    <svg className="w-5 h-5 text-yellow-600" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-neutral-900">{stats.processingAnalyses}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Athlete-specific stats */}
+        {selectedAthlete && (
+          <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-6 mb-8 border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-900 mb-1">
+                  {selectedAthlete.firstName} {selectedAthlete.lastName}
+                </h3>
+                <p className="text-sm text-neutral-600">{selectedAthlete.email}</p>
+              </div>
+              <div className="flex items-center space-x-6">
+                <div className="text-center">
+                  <p className="text-2xl font-bold" style={{ color: '#ABD037' }}>
+                    {selectedAthlete.stats.totalAnalyses}
+                  </p>
+                  <p className="text-xs text-neutral-600">Total Analyses</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-neutral-700">
+                    {selectedAthlete.stats.lastAnalysisDate
+                      ? formatDate(selectedAthlete.stats.lastAnalysisDate)
+                      : 'Never'}
+                  </p>
+                  <p className="text-xs text-neutral-600">Last Analysis</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-neutral-700">
+                    {getNextAnalysisRecommendation(selectedAthlete.stats.lastAnalysisDate)}
+                  </p>
+                  <p className="text-xs text-neutral-600">Next Recommended</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Filters and Actions */}
+        <div className="bg-white rounded-xl p-6 mb-8 border border-neutral-200">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              {/* Athlete Filter */}
+              <div>
+                <label className="text-xs text-neutral-500 font-medium mb-1 block">Athlete</label>
+                <select
+                  value={selectedAthleteId}
+                  onChange={(e) => handleAthleteFilter(e.target.value)}
+                  className="px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:border-primary-300"
+                >
+                  <option value="">All Athletes</option>
+                  {athletes.map((athlete) => (
+                    <option key={athlete.id} value={athlete.id}>
+                      {athlete.firstName} {athlete.lastName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="text-xs text-neutral-500 font-medium mb-1 block">Status</label>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => {
+                    setSelectedStatus(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:border-primary-300"
+                >
+                  <option value="all">All</option>
+                  <option value="completed">Completed</option>
+                  <option value="processing">Processing</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+
+              {/* Date Range Filter */}
+              <div>
+                <label className="text-xs text-neutral-500 font-medium mb-1 block">Time Period</label>
+                <select
+                  value={dateRange}
+                  onChange={(e) => {
+                    setDateRange(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:border-primary-300"
+                >
+                  <option value="all">All Time</option>
+                  <option value="week">Last Week</option>
+                  <option value="month">Last Month</option>
+                  <option value="3months">Last 3 Months</option>
+                  <option value="6months">Last 6 Months</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-3">
               <button
-                onClick={() => setActiveTab('my-analysis')}
-                className={`py-4 px-6 text-sm font-medium transition-colors ${
-                  activeTab === 'my-analysis'
-                    ? 'border-b-2 border-[#ABD037] text-[#ABD037]'
-                    : 'text-[#686868] hover:text-[#ABD037]'
-                }`}
+                onClick={() => navigate('/coach/athletes')}
+                className="px-4 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
               >
-                My Analysis
+                Manage Athletes
               </button>
               <button
-                onClick={() => setActiveTab('athletes')}
-                className={`py-4 px-6 text-sm font-medium transition-colors ${
-                  activeTab === 'athletes'
-                    ? 'border-b-2 border-[#ABD037] text-[#ABD037]'
-                    : 'text-[#686868] hover:text-[#ABD037]'
-                }`}
+                onClick={() => navigate('/upload')}
+                className="px-5 py-2.5 text-white font-medium rounded-xl hover:scale-105 transition-all duration-200 flex items-center"
+                style={{ background: 'linear-gradient(to right, #ABD037, #98B830)' }}
               >
-                Athletes ({totalAthletes})
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Upload Video
               </button>
-            </nav>
+            </div>
           </div>
         </div>
 
-        {/* Tab Content */}
-        {activeTab === 'my-analysis' ? (
-          <div>
-            {/* Coach's Personal Analysis Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-[#686868]">My Analyses</p>
-                    <p className="text-2xl font-bold text-[#ABD037]">{totalAnalyses}</p>
-                  </div>
-                  <svg className="w-12 h-12 text-[#ABD037] opacity-20" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 100 4h2a2 2 0 100-4h-.5a1 1 0 000-2H8a2 2 0 012 2v9a2 2 0 11-4 0V5z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
+        {/* Analysis Grid */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-neutral-900 mb-4">
+            {selectedAthleteId ? 'Athlete Analyses' : 'Recent Analyses'} ({totalAnalyses})
+          </h2>
 
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-[#686868]">This Month</p>
-                    <p className="text-2xl font-bold text-[#ABD037]">{monthlyUsage}</p>
-                  </div>
-                  <svg className="w-12 h-12 text-[#ABD037] opacity-20" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-[#686868]">Total Athletes</p>
-                    <p className="text-2xl font-bold text-[#ABD037]">{totalAthletes}</p>
-                  </div>
-                  <svg className="w-12 h-12 text-[#ABD037] opacity-20" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Upload Section for Coach */}
-            <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
-              <div className="text-center">
-                <svg className="w-16 h-16 text-[#ABD037] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          {analyses.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 border border-neutral-200 text-center">
+              <div className="w-16 h-16 bg-neutral-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <svg className="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <h2 className="text-xl font-semibold text-[#686868] mb-2">Upload My Running Video</h2>
-                <p className="text-[#686868] mb-6">Analyze your own running form</p>
-                <button 
-                  onClick={() => navigate('/upload')}
-                  className="bg-[#ABD037] text-white px-8 py-3 rounded-lg font-medium hover:bg-[#98B830] transition-colors"
+              </div>
+              <p className="text-neutral-600">No analyses found matching your filters</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {analyses.map((analysis) => (
+                <div
+                  key={analysis.id}
+                  onClick={() => navigate(`/analysis/${analysis.id}`)}
+                  className="bg-white rounded-xl overflow-hidden border border-neutral-200 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer"
                 >
-                  Upload My Video
-                </button>
-              </div>
-            </div>
+                  {/* Thumbnail */}
+                  <div className="relative h-48 bg-neutral-200">
+                    {analysis.thumbnailPresignedUrl ? (
+                      <>
+                        <img
+                          src={analysis.thumbnailPresignedUrl}
+                          alt="Analysis thumbnail"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <svg className="w-16 h-16 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
 
-            {/* Recent Personal Analyses */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-[#686868] mb-4">My Recent Analyses</h3>
-              <div className="space-y-4">
-                <div className="text-center py-8 text-[#686868]">
-                  <svg className="w-12 h-12 mx-auto mb-3 opacity-30" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm6 6H7v2h6v-2z" clipRule="evenodd" />
-                  </svg>
-                  <p className="text-sm">No personal analyses yet</p>
-                  <p className="text-xs mt-1">Upload your first video to see results here</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div>
-            {/* Athletes Management Section */}
-            <div className="mb-6 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-[#686868]">Manage Athletes</h2>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-[#ABD037] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#98B830] transition-colors flex items-center"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Add Athlete
-              </button>
-            </div>
+                    {/* Status Badge */}
+                    <div className="absolute top-4 right-4">
+                      <span
+                        className={`px-3 py-1 text-xs font-medium rounded-full backdrop-blur-sm ${
+                          analysis.status === 'COMPLETED'
+                            ? 'bg-green-100 text-green-700'
+                            : analysis.status === 'PROCESSING'
+                            ? 'bg-blue-100 text-blue-700'
+                            : analysis.status === 'PENDING'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        {analysis.status}
+                      </span>
+                    </div>
 
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" />
-              </div>
-            ) : athletes.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {athletes.map(athlete => (
-                  <AthleteCard
-                    key={athlete.id}
-                    athlete={athlete}
-                    onUpdate={loadAthletes}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm p-12">
-                <div className="text-center">
-                  <svg className="w-16 h-16 text-[#686868] opacity-30 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                  </svg>
-                  <h3 className="text-lg font-medium text-[#686868] mb-2">No Athletes Yet</h3>
-                  <p className="text-[#686868] mb-4">Start by adding your first athlete</p>
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-[#ABD037] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#98B830] transition-colors"
-                  >
-                    Add First Athlete
-                  </button>
+                    {/* Date */}
+                    <div className="absolute bottom-4 left-4">
+                      <p className="text-white text-sm font-medium drop-shadow-lg">
+                        {formatDate(analysis.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-5">
+                    <div className="flex items-center mb-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center mr-2"
+                           style={{ background: 'linear-gradient(to right, #ABD037, #98B830)' }}>
+                        <span className="text-white text-xs font-semibold">
+                          {analysis.user.firstName[0]}{analysis.user.lastName[0]}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-neutral-900">
+                          {analysis.user.firstName} {analysis.user.lastName}
+                        </p>
+                        <p className="text-xs text-neutral-500">{analysis.user.email}</p>
+                      </div>
+                    </div>
+
+                    {/* Metrics */}
+                    {analysis.status === 'COMPLETED' && analysis.metricsClassification && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                            <span className="text-neutral-600">Ideal</span>
+                          </div>
+                          <span className="font-semibold text-green-600">
+                            {analysis.metricsClassification.ideal} metrics
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: '#ABD037' }}></div>
+                            <span className="text-neutral-600">Workable</span>
+                          </div>
+                          <span className="font-semibold" style={{ color: '#ABD037' }}>
+                            {analysis.metricsClassification.workable} metrics
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                            <span className="text-neutral-600">Check</span>
+                          </div>
+                          <span className="font-semibold text-red-600">
+                            {analysis.metricsClassification.check} metrics
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {analysis.status === 'PROCESSING' && (
+                      <div className="flex items-center justify-center py-4">
+                        <LoadingSpinner size="sm" />
+                        <span className="ml-2 text-sm text-neutral-600">Processing...</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalAnalyses > 9 && (
+          <div className="flex justify-center items-center space-x-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 border border-neutral-200 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-neutral-600">
+              Page {currentPage} of {Math.ceil(totalAnalyses / 9)}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={currentPage >= Math.ceil(totalAnalyses / 9)}
+              className="px-4 py-2 border border-neutral-200 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
+            >
+              Next
+            </button>
           </div>
         )}
       </div>
-
-      {/* Create Athlete Modal */}
-      {showCreateModal && (
-        <CreateAthleteModal
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={handleAthleteCreated}
-        />
-      )}
     </div>
   );
 };

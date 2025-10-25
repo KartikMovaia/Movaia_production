@@ -13,6 +13,7 @@ import AnalysesPage from '../shared/pages/analysis/AnalysesPage';
 import MetricDetailPage from '../shared/pages/analysis/MetricDetailPage';
 import ProgressPage from '../shared/pages/analysis/ProgressPage';
 import ExerciseLibrary from '../shared/pages/Exercise/ExcerciseLibrary';
+import AthleteManagement from '../apps/coach/src/pages/AthleteManagement';
 
 // Lazy load pages for better performance
 const LoginPage = lazy(() => import('../shared/pages/auth/LoginPage'));
@@ -64,12 +65,24 @@ function App() {
                         }
                       />
 
+                      
                       {/* Coach Dashboard */}
                       <Route
                         path="/coach"
                         element={
                           <ProtectedRoute allowedAccountTypes={[AccountType.COACH]}>
                             <CoachDashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+
+
+                      {/* Athlete Management - ADD THIS */}
+                      <Route
+                        path="/coach/athletes"
+                        element={
+                          <ProtectedRoute allowedAccountTypes={[AccountType.COACH]}>
+                            <AthleteManagement />
                           </ProtectedRoute>
                         }
                       />
